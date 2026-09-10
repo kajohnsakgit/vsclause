@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Skill Desk</title>
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>Private</title>
   <style>
     :root {
       --bg: #12110f;
@@ -122,6 +123,24 @@
       display: none;
     }
 
+    #app { display: none; }
+    body.unlocked #app { display: block; }
+    #gate {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    body.unlocked #gate { display: none; }
+    .gate-card {
+      width: min(420px, 100%);
+      padding: 28px;
+      display: grid;
+      gap: 14px;
+    }
+    .gate-card h1 { font-size: 28px; }
+    .gate-error { color: var(--danger); min-height: 20px; margin: 0; font-size: 14px; }
+
     @media (max-width: 720px) {
       .fields, header { grid-template-columns: 1fr; display: grid; }
       h1 { font-size: 32px; }
@@ -129,7 +148,19 @@
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div id="gate">
+    <form class="panel gate-card" id="gateForm">
+      <p class="eyebrow">Private access</p>
+      <h1>หน้านี้ยังไม่เปิดสาธารณะ</h1>
+      <p class="hint">กรอกรหัสผ่านเพื่อเปิดคลัง skill และกันบอทเข้าถึง</p>
+      <label>รหัสผ่าน
+        <input id="gatePass" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="gate-error" id="gateError"></p>
+      <button class="primary" type="submit">เปิดใช้งาน</button>
+    </form>
+  </div>
+  <div id="app" class="wrap">
     <header>
       <div>
         <p class="eyebrow">Cursor Skill Desk</p>
@@ -174,6 +205,8 @@
 
   <script>
     const STORAGE_KEY = "vsclause-skill-desk-v1";
+    const GATE_KEY = "vsclause-gate-v1";
+    const GATE_HASH = "ff07771bef36ca7eebc8eeded9f37795b13cd31a21a137c43c1318a838a0e91c";
 
     const SEED = [
       {
@@ -447,11 +480,35 @@
       els.importFile.value = "";
     });
 
-    render();
-    if (location.hash) {
-      const target = document.querySelector(location.hash);
-      if (target) target.scrollIntoView();
+    async function sha256hex(text) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
     }
+
+    function openPublic() {
+      document.body.classList.add("unlocked");
+      document.title = "Skill Desk";
+      render();
+      if (location.hash) {
+        const target = document.querySelector(location.hash);
+        if (target) target.scrollIntoView();
+      }
+    }
+
+    document.getElementById("gateForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const error = document.getElementById("gateError");
+      const hash = await sha256hex(document.getElementById("gatePass").value);
+      if (hash !== GATE_HASH) {
+        error.textContent = "รหัสไม่ถูกต้อง";
+        return;
+      }
+      sessionStorage.setItem(GATE_KEY, GATE_HASH);
+      error.textContent = "";
+      openPublic();
+    });
+
+    if (sessionStorage.getItem(GATE_KEY) === GATE_HASH) openPublic();
   </script>
 </body>
 </html>
